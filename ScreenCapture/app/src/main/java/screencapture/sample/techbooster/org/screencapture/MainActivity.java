@@ -47,17 +47,20 @@ public class MainActivity extends Activity {
         b.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                Log.d(TAG,"getScreenshot");
                 Bitmap screenshot = getScreenshot();
-
                 ImageView iv = (ImageView) findViewById(R.id.imageView);
                 iv.setImageBitmap(screenshot);
             }
         });
 
-        // Lintによるサジェスト "Must be one of..."が赤い下線で出ますがここでは無視します（ビルドできる）
+        // Lintによるサジェスト "Must be one of..."が赤い下線で出るケースがあります。
+        // ここでは無視します（ビルドできる）
         mMediaProjectionManager = (MediaProjectionManager)
                 getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
+        // MediaProjectionの利用にはパーミッションが必要。
+        // ユーザーへの問い合わせのため、Intentを発行
         Intent permissionIntent = mMediaProjectionManager.createScreenCaptureIntent();
         startActivityForResult(permissionIntent, REQUEST_CODE_SCREEN_CAPTURE);
     }
@@ -70,14 +73,16 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
                 return;
             }
-            //スタート
-            mMediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, intent);
+            // MediaProjectionの取得
+            mMediaProjection =
+                    mMediaProjectionManager.getMediaProjection(resultCode, intent);
 
             DisplayMetrics metrics = getResources().getDisplayMetrics();
             mWidth = metrics.widthPixels;
             mHeight = metrics.heightPixels;
             int density = metrics.densityDpi;
 
+            Log.d(TAG,"setup VirtualDisplay");
             mImageReader = ImageReader.newInstance(mWidth, mHeight, ImageFormat.RGB_565, 2);
             mVirtualDisplay = mMediaProjection.createVirtualDisplay("Capturing Display",
                     mWidth, mHeight, density,
@@ -89,22 +94,23 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         if (mVirtualDisplay != null) {
+            Log.d(TAG,"release VirtualDisplay");
             mVirtualDisplay.release();
         }
         super.onPause();
     }
 
     private Bitmap getScreenshot() {
+        // ImageReaderから画面を取り出す
         Image image = mImageReader.acquireLatestImage();
         Image.Plane[] planes = image.getPlanes();
         ByteBuffer buffer = planes[0].getBuffer();
 
-        int offset = 0;
         int pixelStride = planes[0].getPixelStride();
         int rowStride = planes[0].getRowStride();
         int rowPadding = rowStride - pixelStride * mWidth;
 
-        // create bitmap
+        // バッファからBitmapを生成
         Bitmap bitmap = Bitmap.createBitmap(mWidth + rowPadding / pixelStride, mHeight, Bitmap.Config.RGB_565);
         bitmap.copyPixelsFromBuffer(buffer);
         image.close();
