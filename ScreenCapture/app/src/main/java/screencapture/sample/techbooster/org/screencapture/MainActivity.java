@@ -4,9 +4,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.projection.MediaProjection;
@@ -19,9 +19,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Toast;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 
 
@@ -30,8 +29,9 @@ public class MainActivity extends Activity {
     private static final String TAG = "ScreenCapture";
     private static final int REQUEST_CODE_SCREEN_CAPTURE = 1;
 
-    private MediaProjection mMediaProjection;
     private MediaProjectionManager mMediaProjectionManager;
+    private MediaProjection mMediaProjection;
+    private VirtualDisplay mVirtualDisplay;
 
     private ImageReader mImageReader; // スクリーンショット用
     private int mWidth;
@@ -43,18 +43,18 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button b = (Button)findViewById(R.id.button);
+        Button b = (Button) findViewById(R.id.button);
         b.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Bitmap screenshot = getScreenshot();
 
-                ImageView iv = (ImageView)findViewById(R.id.imageView);
+                ImageView iv = (ImageView) findViewById(R.id.imageView);
                 iv.setImageBitmap(screenshot);
             }
         });
 
-        // Lintによるサジェスト "Must be one of..."が出ますが、ここでは無視します
+        // Lintによるサジェスト "Must be one of..."が赤い下線で出ますがここでは無視します（ビルドできる）
         mMediaProjectionManager = (MediaProjectionManager)
                 getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
@@ -67,6 +67,8 @@ public class MainActivity extends Activity {
         if (REQUEST_CODE_SCREEN_CAPTURE == requestCode) {
             if (resultCode != RESULT_OK) {
                 //パーミッションなし
+                Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
+                return;
             }
             //スタート
             mMediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, intent);
@@ -77,14 +79,22 @@ public class MainActivity extends Activity {
             int density = metrics.densityDpi;
 
             mImageReader = ImageReader.newInstance(mWidth, mHeight, ImageFormat.RGB_565, 2);
-            mMediaProjection.createVirtualDisplay("Capturing Display",
+            mVirtualDisplay = mMediaProjection.createVirtualDisplay("Capturing Display",
                     mWidth, mHeight, density,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                     mImageReader.getSurface(), null, null);
         }
     }
 
-    private Bitmap getScreenshot(){
+    @Override
+    protected void onPause() {
+        if (mVirtualDisplay != null) {
+            mVirtualDisplay.release();
+        }
+        super.onPause();
+    }
+
+    private Bitmap getScreenshot() {
         Image image = mImageReader.acquireLatestImage();
         Image.Plane[] planes = image.getPlanes();
         ByteBuffer buffer = planes[0].getBuffer();
@@ -95,7 +105,7 @@ public class MainActivity extends Activity {
         int rowPadding = rowStride - pixelStride * mWidth;
 
         // create bitmap
-        Bitmap bitmap = Bitmap.createBitmap(mWidth  +rowPadding / pixelStride, mHeight, Bitmap.Config.RGB_565);
+        Bitmap bitmap = Bitmap.createBitmap(mWidth + rowPadding / pixelStride, mHeight, Bitmap.Config.RGB_565);
         bitmap.copyPixelsFromBuffer(buffer);
         image.close();
 
