@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">M Permission Basic</string>
+    <string name="hello_world">パーミッションを取得しているか、確認するには、REQUEST PERMISSIONをおしてください。パーミッションをリセットするにはAPP SETTINGSから設定画面をひらいて、アプリ設定＞権限をチェックしてください（権限をON/OFFすることで状態はリセットされます）</string>
+ </resources>
