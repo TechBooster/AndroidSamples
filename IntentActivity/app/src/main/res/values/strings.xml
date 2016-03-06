@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">IntentActivity</string>
+    <string name="sub_name">SubActivity</string>
+    <string name="action_settings">Settings</string>
+</resources>
